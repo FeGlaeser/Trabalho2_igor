@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerenciamento de Sessões</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 Gerenciamento de Sessões</h1>
+
+        <h2>Cadastrar Nova Sessão</h2>
+        <form id="formSessao">
+            <label for="filmeId">ID do Filme:</label>
+            <input type="number" id="filmeId" name="filmeId" required>
+
+            <label for="salaId">ID da Sala:</label>
+            <input type="number" id="salaId" name="salaId" required>
+
+            <label for="dataHora">Data e Hora:</label>
+            <input type="datetime-local" id="dataHora" name="dataHora" required>
+
+            <label for="preco">Preço (R$):</label>
+            <input type="number" step="0.01" id="preco" name="preco" required>
+
+            <button type="submit">Cadastrar Sessão</button>
+        </form>
+
+        <div id="sessao-status"></div>
+
+        <hr>
+
+        <h2>Sessões Agendadas</h2>
+        <table class="data-table" id="tabelaSessoes">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Filme ID</th>
+                    <th>Sala ID</th>
+                    <th>Data/Hora</th>
+                    <th>Preço</th>
+                </tr>
+            </thead>
+            <tbody>
+                </tbody>
+        </table>
+
+    </div>
+
+    <script>
+        const API_URL = '/api/sessoes';
+        const formSessao = document.getElementById('formSessao');
+        const tabelaCorpo = document.querySelector('#tabelaSessoes tbody');
+        const statusDiv = document.getElementById('sessao-status');
+
+        // Função para formatar a data/hora para exibição
+        const formatarData = (dateTimeStr) => {
+            const date = new Date(dateTimeStr);
+            return date.toLocaleString('pt-BR');
+        };
+
+        // 1. Função para Listar Sessões
+        const buscarSessoes = async () => {
+            try {
+                const response = await fetch(API_URL);
+                const sessoes = await response.json();
+                
+                tabelaCorpo.innerHTML = ''; // Limpa a tabela
+                sessoes.forEach(sessao => {
+                    const row = tabelaCorpo.insertRow();
+                    row.insertCell().textContent = sessao.id;
+                    row.insertCell().textContent = sessao.filmeId;
+                    row.insertCell().textContent = sessao.salaId;
+                    row.insertCell().textContent = formatarData(sessao.dataHora);
+                    row.insertCell().textContent = `R$ ${sessao.preco.toFixed(2)}`;
+                });
+
+            } catch (error) {
+                tabelaCorpo.innerHTML = '<tr><td colspan="5">Erro ao carregar sessões. Verifique o console.</td></tr>';
+                console.error('Erro ao buscar sessões:', error);
+            }
+        };
+
+        // 2. Função para Cadastrar Sessão
+        formSessao.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const sessaoData = {
+                filmeId: parseInt(document.getElementById('filmeId').value),
+                salaId: parseInt(document.getElementById('salaId').value),
+                dataHora: document.getElementById('dataHora').value,
+                preco: parseFloat(document.getElementById('preco').value)
+            };
+            
+            statusDiv.className = '';
+            statusDiv.textContent = 'Processando...';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(sessaoData)
+                });
+                
+                const result = await response.json(); // Tenta ler como JSON
+                const resultText = response.status === 201 ? JSON.stringify(result) : result.result || result; // Pega o corpo do erro se não for 201
+                
+                if (response.status === 201) {
+                    statusDiv.className = 'sucesso';
+                    statusDiv.textContent = 'Sessão cadastrada com sucesso!';
+                    formSessao.reset();
+                    buscarSessoes();
+                } else {
+                    statusDiv.className = 'erro';
+                    statusDiv.textContent = `Erro ${response.status}: ${resultText}`;
+                }
+
+            } catch (error) {
+                statusDiv.className = 'erro';
+                statusDiv.textContent = 'Erro de comunicação com a API.';
+                console.error('Erro de requisição:', error);
+            }
+        });
+
+        // Carrega a lista ao carregar a página
+        document.addEventListener('DOMContentLoaded', buscarSessoes);
+    </script>
+</body>
+</html>
